@@ -464,6 +464,11 @@ namespace Avalonia.Controls.Primitives
                 return;
             }
 
+            if (!Items.IsReadOnly)
+            {
+                UpdateSelectionFromAddedItems(e);
+            }
+
             if (AlwaysSelected && SelectedIndex == -1 && ItemCount > 0)
             {
                 SelectedIndex = 0;
@@ -542,7 +547,11 @@ namespace Avalonia.Controls.Primitives
                 // container theme which has bound the IsSelected property. Update our selection
                 // based on the selection state of the container.
                 var containerIsSelected = GetIsSelected(container);
-                UpdateSelection(index, containerIsSelected, toggleModifier: true);
+
+                if (Selection.IsSelected(index) != containerIsSelected)
+                {
+                    UpdateSelection(index, containerIsSelected, toggleModifier: true);
+                }
             }
 
             if (Selection.AnchorIndex == index)
@@ -592,6 +601,10 @@ namespace Avalonia.Controls.Primitives
             base.OnInitialized();
 
             TryInitializeSelectionSource(_selection, _updateState is null);
+            if (_updateState is null)
+            {
+                UpdateSelectionFromLogicalControlItems();
+            }
         }
 
         /// <inheritdoc />
@@ -1208,7 +1221,7 @@ namespace Avalonia.Controls.Primitives
             if (!_ignoreContainerSelectionChanged &&
                 e.Source is Control control &&
                 control.Parent == this &&
-                IndexFromContainer(control) is var index &&
+                GetContainerOrItemIndex(control) is var index &&
                 index >= 0)
             {
                 if (GetIsSelected(control))
@@ -1221,6 +1234,110 @@ namespace Avalonia.Controls.Primitives
             {
                 e.Handled = true;
             }
+        }
+
+        private void UpdateSelectionFromAddedItems(NotifyCollectionChangedEventArgs e)
+        {
+            switch (e.Action)
+            {
+                case NotifyCollectionChangedAction.Add:
+                case NotifyCollectionChangedAction.Replace:
+                    UpdateSelectionFromItems(e.NewItems, e.NewStartingIndex);
+                    break;
+
+                case NotifyCollectionChangedAction.Reset:
+                    UpdateSelectionFromLogicalControlItems();
+                    break;
+            }
+        }
+
+        private void UpdateSelectionFromItems(IList? items, int startingIndex)
+        {
+            if (items is null)
+            {
+                return;
+            }
+
+            for (var i = 0; i < items.Count; ++i)
+            {
+                if (items[i] is Control control && IsSelectedControlItem(control))
+                {
+                    var index = startingIndex >= 0 ? startingIndex + i : ItemsView.IndexOf(control);
+                    UpdateSelectionFromSelectedControlItem(index);
+                }
+            }
+        }
+
+        private void UpdateSelectionFromLogicalControlItems()
+        {
+            if (_updateState is not null || Items.IsReadOnly)
+            {
+                return;
+            }
+
+            List<Control>? selectedControls = null;
+
+            foreach (var logical in LogicalChildren)
+            {
+                if (logical is Control control &&
+                    control.Parent == this &&
+                    IndexFromContainer(control) == -1 &&
+                    IsSelectedControlItem(control))
+                {
+                    selectedControls ??= [];
+                    selectedControls.Add(control);
+                }
+            }
+
+            if (selectedControls is null)
+            {
+                return;
+            }
+
+            foreach (var control in selectedControls)
+            {
+                if (TryGetItemIndex(control, out var index))
+                {
+                    UpdateSelectionFromSelectedControlItem(index);
+                }
+            }
+        }
+
+        private static bool IsSelectedControlItem(Control control)
+        {
+            return control.IsSet(IsSelectedProperty) && GetIsSelected(control);
+        }
+
+        private bool TryGetItemIndex(Control control, out int index)
+        {
+            try
+            {
+                index = ItemsView.IndexOf(control);
+            }
+            catch (InvalidCastException)
+            {
+                index = -1;
+            }
+            catch (NotImplementedException)
+            {
+                index = -1;
+            }
+
+            return index >= 0;
+        }
+
+        private void UpdateSelectionFromSelectedControlItem(int index)
+        {
+            if (index >= 0 && !Selection.IsSelected(index))
+            {
+                UpdateSelection(index, true, toggleModifier: true);
+            }
+        }
+
+        private int GetContainerOrItemIndex(Control control)
+        {
+            var index = IndexFromContainer(control);
+            return index >= 0 || Items.IsReadOnly ? index : ItemsView.IndexOf(control);
         }
 
         /// <summary>
@@ -1395,6 +1512,8 @@ namespace Avalonia.Controls.Primitives
                 {
                     SelectedItem = state.SelectedItem.Value;
                 }
+
+                UpdateSelectionFromLogicalControlItems();
 
                 if (AlwaysSelected && SelectedIndex == -1 && ItemCount > 0)
                 {

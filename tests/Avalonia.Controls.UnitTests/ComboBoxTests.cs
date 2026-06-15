@@ -19,7 +19,7 @@ namespace Avalonia.Controls.UnitTests
     public class ComboBoxTests : ScopedTestBase
     {
         MouseTestHelper _helper = new MouseTestHelper();
-        
+
         [Fact]
         public void Clicking_On_Control_Toggles_IsDropDownOpen()
         {
@@ -179,6 +179,25 @@ namespace Avalonia.Controls.UnitTests
 
             Assert.False(((ILogical)target).IsAttachedToLogicalTree);
             Assert.False(((ILogical)rectangle).IsAttachedToLogicalTree);
+        }
+
+        [Fact]
+        public void Inline_ComboBoxItem_IsSelected_Should_Set_SelectedItem_During_Initialize()
+        {
+            var item1 = new ComboBoxItem { Content = "Item 1" };
+            var item2 = new ComboBoxItem { Content = "Item 2", IsSelected = true };
+            var item3 = new ComboBoxItem { Content = "Item 3" };
+            var comboBox = new ComboBox();
+
+            comboBox.BeginInit();
+            comboBox.Items.Add(item1);
+            comboBox.Items.Add(item2);
+            comboBox.Items.Add(item3);
+            comboBox.EndInit();
+
+            Assert.Same(item2, comboBox.SelectedItem);
+            Assert.Equal(1, comboBox.SelectedIndex);
+            Assert.True(item2.IsSelected);
         }
 
         private static FuncControlTemplate GetTemplate()
@@ -381,7 +400,7 @@ namespace Avalonia.Controls.UnitTests
 
                 target.ApplyTemplate();
                 target.Presenter!.ApplyTemplate();
-                
+
                 var exception = new System.InvalidCastException("failed validation");
                 var textObservable = new BehaviorSubject<BindingNotification>(new BindingNotification(exception, BindingErrorType.DataValidationError));
                 target.Bind(ComboBox.SelectedItemProperty, textObservable);
@@ -389,7 +408,7 @@ namespace Avalonia.Controls.UnitTests
                 Assert.True(DataValidationErrors.GetHasErrors(target));
                 Assert.Equal([exception], DataValidationErrors.GetErrors(target));
             }
-            
+
         }
 
         [Fact]
@@ -404,7 +423,7 @@ namespace Avalonia.Controls.UnitTests
 
                 target.ApplyTemplate();
                 target.Presenter!.ApplyTemplate();
-                
+
                 var exception = new System.InvalidCastException("failed validation");
                 var textObservable = new BehaviorSubject<BindingNotification>(new BindingNotification(exception, BindingErrorType.DataValidationError));
                 target.Bind(ComboBox.TextProperty, textObservable);
@@ -511,7 +530,7 @@ namespace Avalonia.Controls.UnitTests
             };
             var target = new ComboBox
             {
-                Items = 
+                Items =
                 {
                     new ComboBoxItem()
                     {
@@ -531,7 +550,7 @@ namespace Avalonia.Controls.UnitTests
 
             parentContent.FlowDirection = FlowDirection.RightToLeft;
             target.FlowDirection = FlowDirection.RightToLeft;
-            
+
             Assert.Equal(FlowDirection.RightToLeft, rectangle.FlowDirection);
         }
 
@@ -571,7 +590,7 @@ namespace Avalonia.Controls.UnitTests
                 var popup = target.GetVisualDescendants().OfType<Popup>().First();
                 popup.PlacementTarget = new Window();
                 popup.Open();
-                
+
                 Assert.Equal(FlowDirection.RightToLeft, rectangle.FlowDirection);
             }
         }
@@ -587,10 +606,10 @@ namespace Avalonia.Controls.UnitTests
                 SelectionBoxItemTemplate = selectionBoxItemTemplate,
                 ItemTemplate = itemTemplate,
             };
-            
+
             Assert.Equal(selectionBoxItemTemplate, target.SelectionBoxItemTemplate);
         }
-        
+
         [Fact]
         public void SelectionBoxItemTemplate_Inherits_From_ItemTemplate_When_NotSet()
         {
@@ -600,7 +619,7 @@ namespace Avalonia.Controls.UnitTests
                 ItemsSource = new []{ "Foo" },
                 ItemTemplate = itemTemplate,
             };
-            
+
             Assert.Equal(itemTemplate, target.SelectionBoxItemTemplate);
         }
 
@@ -618,9 +637,9 @@ namespace Avalonia.Controls.UnitTests
             };
 
             Assert.Equal(selectionBoxItemTemplate, target.SelectionBoxItemTemplate);
-            
+
             target.ItemTemplate = itemTemplate2;
-            
+
             Assert.Equal(selectionBoxItemTemplate, target.SelectionBoxItemTemplate);
         }
 
